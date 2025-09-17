@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Shield, Download, ExternalLink, CheckCircle, Calendar, Hash, FileText } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 interface DigitalIDCardProps {
   data: {
@@ -20,17 +22,74 @@ interface DigitalIDCardProps {
 }
 
 export const DigitalIDCard = ({ data, digitalId }: DigitalIDCardProps) => {
-  const handleDownloadPDF = () => {
-    toast({
-      title: "PDF Generated",
-      description: "Your Digital ID certificate has been downloaded.",
-    });
+  const handleDownloadPDF = async () => {
+    try {
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      
+      // Header
+      pdf.setFontSize(24);
+      pdf.setTextColor(46, 125, 50);
+      pdf.text('Digital Identity Certificate', 20, 30);
+      
+      // User Information
+      pdf.setFontSize(16);
+      pdf.setTextColor(0, 0, 0);
+      pdf.text('Personal Information', 20, 50);
+      
+      pdf.setFontSize(12);
+      pdf.text(`Name: ${data.name}`, 20, 65);
+      pdf.text(`Date of Birth: ${data.dateOfBirth}`, 20, 75);
+      pdf.text(`ID Number: ${data.idNumber}`, 20, 85);
+      pdf.text(`Emergency Contact: ${data.emergencyContact}`, 20, 95);
+      
+      // Digital ID Information
+      pdf.setFontSize(16);
+      pdf.text('Digital Identity Details', 20, 115);
+      
+      pdf.setFontSize(12);
+      pdf.text(`Digital ID Hash: ${digitalId.userHash}`, 20, 130);
+      pdf.text(`Issued At: ${formatDate(digitalId.issuedAt)}`, 20, 140);
+      pdf.text(`Valid Until: ${formatDate(digitalId.validUntil)}`, 20, 150);
+      pdf.text(`Transaction Hash: ${digitalId.transactionHash}`, 20, 160);
+      
+      // Security Features
+      pdf.setFontSize(16);
+      pdf.text('Security Features', 20, 180);
+      
+      pdf.setFontSize(10);
+      pdf.text('• SHA-256 Encrypted Hash', 20, 195);
+      pdf.text('• Blockchain Immutable Storage', 20, 205);
+      pdf.text('• Smart Contract Verification', 20, 215);
+      pdf.text('• Tamper-Proof Digital Certificate', 20, 225);
+      
+      // Footer
+      pdf.setFontSize(8);
+      pdf.setTextColor(128, 128, 128);
+      pdf.text('This is a digitally verifiable document secured on blockchain', 20, 270);
+      
+      pdf.save(`Digital_ID_${data.name.replace(/\s+/g, '_')}.pdf`);
+      
+      toast({
+        title: "PDF Downloaded",
+        description: "Your Digital ID certificate has been saved successfully.",
+      });
+    } catch (error) {
+      toast({
+        title: "Download Failed",
+        description: "There was an error generating your PDF certificate.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleViewTransaction = () => {
+    // Open blockchain explorer with transaction hash
+    const explorerUrl = `https://etherscan.io/tx/${digitalId.transactionHash}`;
+    window.open(explorerUrl, '_blank');
+    
     toast({
-      title: "Transaction Viewer",
-      description: "Opening blockchain explorer in new tab.",
+      title: "Blockchain Explorer Opened",
+      description: "Transaction details opened in new tab.",
     });
   };
 
