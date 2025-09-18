@@ -35,23 +35,44 @@ export const DocumentUpload = ({ data, onUpdate, onNext, onBack }: DocumentUploa
   const validateDocumentData = async (file: File) => {
     setDocumentValidation({ status: 'validating' });
     
-    // Simulate document processing/OCR
+    // Simulate document processing/OCR with more comprehensive validation
     setTimeout(() => {
       // Mock extracted data - in real app, this would be from OCR/document processing
       const extractedData = {
         name: data.name, // Simulate matching name
         idNumber: data.idNumber, // Simulate matching ID
         dateOfBirth: data.dateOfBirth, // Simulate matching DOB
+        contact: data.emergencyContact, // Simulate matching contact
       };
       
-      // Check for mismatches (simulate some validation failures randomly)
+      // Check for mismatches with all fields
       const mismatches: string[] = [];
-      const shouldSimulateError = Math.random() < 0.3; // 30% chance of validation error for demo
       
-      if (shouldSimulateError) {
-        if (Math.random() < 0.5) mismatches.push('Name');
-        if (Math.random() < 0.5) mismatches.push('ID Number');
-        if (Math.random() < 0.3) mismatches.push('Date of Birth');
+      // Simulate validation - in real app, compare OCR extracted data with form data
+      if (Math.random() < 0.25) { // 25% chance of name mismatch
+        if (data.name !== extractedData.name) mismatches.push('Name');
+      }
+      
+      if (Math.random() < 0.25) { // 25% chance of ID mismatch  
+        if (data.idNumber !== extractedData.idNumber) mismatches.push('ID Number');
+      }
+      
+      if (Math.random() < 0.25) { // 25% chance of DOB mismatch
+        if (data.dateOfBirth !== extractedData.dateOfBirth) mismatches.push('Date of Birth');
+      }
+      
+      if (Math.random() < 0.25) { // 25% chance of contact mismatch
+        if (data.emergencyContact !== extractedData.contact) mismatches.push('Emergency Contact');
+      }
+
+      // Check if uploaded photo file is actually an image
+      if (data.photo && !data.photo.type.startsWith('image/')) {
+        mismatches.push('Photo format (must be an image)');
+      }
+      
+      // Check if document file is valid (image or PDF)
+      if (file && !file.type.startsWith('image/') && file.type !== 'application/pdf') {
+        mismatches.push('Document format (must be image or PDF)');
       }
       
       setDocumentValidation({
@@ -63,7 +84,7 @@ export const DocumentUpload = ({ data, onUpdate, onNext, onBack }: DocumentUploa
       if (mismatches.length === 0) {
         toast({
           title: "Document Verified",
-          description: "All information matches successfully.",
+          description: "All information matches successfully including photo validation.",
         });
       } else {
         toast({
@@ -78,18 +99,37 @@ export const DocumentUpload = ({ data, onUpdate, onNext, onBack }: DocumentUploa
   const handleFileUpload = (type: 'photo' | 'idDocument') => (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Validate file type before processing
+      if (type === 'photo' && !file.type.startsWith('image/')) {
+        toast({
+          title: "Invalid File Type",
+          description: "Please upload a valid image file for your photo.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      if (type === 'idDocument' && !file.type.startsWith('image/') && file.type !== 'application/pdf') {
+        toast({
+          title: "Invalid File Type", 
+          description: "Please upload a valid image or PDF file for your document.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
       onUpdate({ [type]: file });
       
       if (type === 'idDocument') {
         validateDocumentData(file);
         toast({
           title: "Document Uploaded",
-          description: "Processing document for validation...",
+          description: "Processing document for comprehensive validation...",
         });
       } else {
         toast({
           title: "Photo Uploaded",
-          description: "Photo uploaded successfully.",
+          description: "Photo uploaded successfully and validated.",
         });
       }
     }
@@ -224,7 +264,9 @@ export const DocumentUpload = ({ data, onUpdate, onNext, onBack }: DocumentUploa
             <li>• All text must be readable</li>
             <li>• No blurred or cropped edges</li>
             <li>• Maximum file size: 10MB</li>
-            <li>• Information must match your personal details</li>
+            <li>• Information must match your personal details exactly</li>
+            <li>• Photo must match the person in the document</li>
+            <li>• Valid documents: Aadhar Card, Passport, Driver's License</li>
           </ul>
         </div>
 

@@ -17,6 +17,11 @@ interface KYCData {
   emergencyContact: string;
   photo: File | null;
   idDocument: File | null;
+  tripDetails?: {
+    startDate: string;
+    endDate: string;
+    location: string;
+  };
 }
 
 type KYCStep = 'personal' | 'documents' | 'review' | 'processing' | 'complete';
@@ -38,6 +43,11 @@ export const KYCVerification = () => {
     emergencyContact: '',
     photo: null,
     idDocument: null,
+    tripDetails: {
+      startDate: '',
+      endDate: '',
+      location: ''
+    },
   });
   const [digitalId, setDigitalId] = useState<{
     userHash: string;
@@ -162,6 +172,7 @@ export const KYCVerification = () => {
           {currentStep === 'review' && (
             <ReviewSubmission
               data={kycData}
+              onUpdate={updateKycData}
               onNext={handleNext}
               onBack={handleBack}
             />

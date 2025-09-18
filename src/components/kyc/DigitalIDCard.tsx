@@ -12,6 +12,13 @@ interface DigitalIDCardProps {
     dateOfBirth: string;
     idNumber: string;
     emergencyContact: string;
+    photo: File | null;
+    idDocument: File | null;
+    tripDetails?: {
+      startDate: string;
+      endDate: string;
+      location: string;
+    };
   };
   digitalId: {
     userHash: string;
@@ -26,52 +33,129 @@ export const DigitalIDCard = ({ data, digitalId }: DigitalIDCardProps) => {
     try {
       const pdf = new jsPDF('p', 'mm', 'a4');
       
-      // Header
+      // Set up colors and fonts
+      pdf.setFillColor(59, 130, 246); // Blue color
+      pdf.setTextColor(255, 255, 255); // White text
+      
+      // Header with gradient-like effect
+      pdf.rect(0, 0, 210, 40, 'F');
       pdf.setFontSize(24);
-      pdf.setTextColor(46, 125, 50);
-      pdf.text('Digital Identity Certificate', 20, 30);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('DIGITAL IDENTITY CERTIFICATE', 105, 25, { align: 'center' });
       
-      // User Information
-      pdf.setFontSize(16);
+      // Reset text color for body
       pdf.setTextColor(0, 0, 0);
-      pdf.text('Personal Information', 20, 50);
       
+      // ID Card Border
+      pdf.setDrawColor(59, 130, 246);
+      pdf.setLineWidth(2);
+      pdf.rect(20, 50, 170, 200, 'S');
+      
+      // Title
+      pdf.setFontSize(20);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Tourist Digital ID', 105, 70, { align: 'center' });
+      
+      // Personal Information Section
+      pdf.setFontSize(14);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(59, 130, 246);
+      pdf.text('PERSONAL INFORMATION', 30, 90);
+      
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(0, 0, 0);
       pdf.setFontSize(12);
-      pdf.text(`Name: ${data.name}`, 20, 65);
-      pdf.text(`Date of Birth: ${data.dateOfBirth}`, 20, 75);
-      pdf.text(`ID Number: ${data.idNumber}`, 20, 85);
-      pdf.text(`Emergency Contact: ${data.emergencyContact}`, 20, 95);
       
-      // Digital ID Information
-      pdf.setFontSize(16);
-      pdf.text('Digital Identity Details', 20, 115);
+      const personalInfo = [
+        ['Name:', data.name],
+        ['Date of Birth:', new Date(data.dateOfBirth).toLocaleDateString()],
+        ['ID Number:', data.idNumber],
+        ['Emergency Contact:', data.emergencyContact],
+      ];
       
-      pdf.setFontSize(12);
-      pdf.text(`Digital ID Hash: ${digitalId.userHash}`, 20, 130);
-      pdf.text(`Issued At: ${formatDate(digitalId.issuedAt)}`, 20, 140);
-      pdf.text(`Valid Until: ${formatDate(digitalId.validUntil)}`, 20, 150);
-      pdf.text(`Transaction Hash: ${digitalId.transactionHash}`, 20, 160);
+      personalInfo.forEach(([label, value], index) => {
+        const yPos = 100 + (index * 8);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(label, 30, yPos);
+        pdf.setFont('helvetica', 'normal');
+        pdf.text(value, 80, yPos);
+      });
       
-      // Security Features
-      pdf.setFontSize(16);
-      pdf.text('Security Features', 20, 180);
+      // Trip Details Section
+      let nextSectionY = 140;
+      if (data.tripDetails) {
+        pdf.setFontSize(14);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setTextColor(59, 130, 246);
+        pdf.text('TRIP DETAILS', 30, nextSectionY);
+        
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(0, 0, 0);
+        pdf.setFontSize(12);
+        
+        const tripInfo = [
+          ['Destination:', data.tripDetails.location],
+          ['Start Date:', new Date(data.tripDetails.startDate).toLocaleDateString()],
+          ['End Date:', new Date(data.tripDetails.endDate).toLocaleDateString()],
+        ];
+        
+        tripInfo.forEach(([label, value], index) => {
+          const yPos = nextSectionY + 10 + (index * 8);
+          pdf.setFont('helvetica', 'bold');
+          pdf.text(label, 30, yPos);
+          pdf.setFont('helvetica', 'normal');
+          pdf.text(value, 80, yPos);
+        });
+        
+        nextSectionY += 40;
+      }
       
+      // Blockchain Information Section
+      pdf.setFontSize(14);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(59, 130, 246);
+      pdf.text('BLOCKCHAIN VERIFICATION', 30, nextSectionY);
+      
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(0, 0, 0);
       pdf.setFontSize(10);
-      pdf.text('• SHA-256 Encrypted Hash', 20, 195);
-      pdf.text('• Blockchain Immutable Storage', 20, 205);
-      pdf.text('• Smart Contract Verification', 20, 215);
-      pdf.text('• Tamper-Proof Digital Certificate', 20, 225);
+      
+      const blockchainInfo = [
+        ['Digital ID Hash:', digitalId.userHash],
+        ['Transaction Hash:', digitalId.transactionHash],
+        ['Issued Date:', new Date(digitalId.issuedAt).toLocaleDateString()],
+        ['Valid Until:', new Date(digitalId.validUntil).toLocaleDateString()],
+      ];
+      
+      blockchainInfo.forEach(([label, value], index) => {
+        const yPos = nextSectionY + 10 + (index * 6);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(label, 30, yPos);
+        pdf.setFont('helvetica', 'normal');
+        // Truncate long hashes for better display
+        const displayValue = value.length > 40 ? value.substring(0, 40) + '...' : value;
+        pdf.text(displayValue, 80, yPos);
+      });
+      
+      // QR Code placeholder (you can integrate a QR code library)
+      pdf.setDrawColor(200, 200, 200);
+      pdf.rect(140, 90, 40, 40, 'S');
+      pdf.setFontSize(8);
+      pdf.text('QR Code', 160, 113, { align: 'center' });
       
       // Footer
+      const footerY = nextSectionY + 60;
       pdf.setFontSize(8);
       pdf.setTextColor(128, 128, 128);
-      pdf.text('This is a digitally verifiable document secured on blockchain', 20, 270);
+      pdf.text('This digital identity is secured by blockchain technology', 105, footerY, { align: 'center' });
+      pdf.text('Verify at: blockchain.tourist-id.com', 105, footerY + 5, { align: 'center' });
       
-      pdf.save(`Digital_ID_${data.name.replace(/\s+/g, '_')}.pdf`);
+      // Save the PDF
+      pdf.save(`Digital-ID-${data.name.replace(/\s+/g, '-')}.pdf`);
       
       toast({
         title: "PDF Downloaded",
-        description: "Your Digital ID certificate has been saved successfully.",
+        description: "Your Digital ID certificate has been downloaded successfully.",
       });
     } catch (error) {
       toast({
@@ -148,6 +232,15 @@ export const DigitalIDCard = ({ data, digitalId }: DigitalIDCardProps) => {
                 <p className="font-medium">{data.dateOfBirth}</p>
               </div>
             </div>
+            {data.tripDetails && (
+              <div>
+                <p className="text-sm opacity-80">Trip Destination</p>
+                <p className="font-medium">{data.tripDetails.location}</p>
+                <p className="text-xs opacity-60">
+                  {new Date(data.tripDetails.startDate).toLocaleDateString()} - {new Date(data.tripDetails.endDate).toLocaleDateString()}
+                </p>
+              </div>
+            )}
             <div>
               <p className="text-sm opacity-80">Digital ID Hash</p>
               <p className="font-mono text-sm">{shortenHash(digitalId.userHash)}</p>

@@ -1,7 +1,10 @@
 import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, User, Calendar, IdCard, Phone, Camera, FileText, Shield } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { CheckCircle, User, Calendar, IdCard, Phone, Camera, FileText, Shield, MapPin, Clock } from "lucide-react";
+import { useState } from "react";
 
 interface ReviewSubmissionProps {
   data: {
@@ -11,12 +14,32 @@ interface ReviewSubmissionProps {
     emergencyContact: string;
     photo: File | null;
     idDocument: File | null;
+    tripDetails?: {
+      startDate: string;
+      endDate: string;
+      location: string;
+    };
   };
+  onUpdate: (data: any) => void;
   onNext: () => void;
   onBack: () => void;
 }
 
-export const ReviewSubmission = ({ data, onNext, onBack }: ReviewSubmissionProps) => {
+export const ReviewSubmission = ({ data, onUpdate, onNext, onBack }: ReviewSubmissionProps) => {
+  const [tripDetails, setTripDetails] = useState({
+    startDate: data.tripDetails?.startDate || '',
+    endDate: data.tripDetails?.endDate || '',
+    location: data.tripDetails?.location || ''
+  });
+
+  const handleTripUpdate = (field: string, value: string) => {
+    const updatedTripDetails = { ...tripDetails, [field]: value };
+    setTripDetails(updatedTripDetails);
+    onUpdate({ tripDetails: updatedTripDetails });
+  };
+
+  const isTripDetailsValid = tripDetails.startDate && tripDetails.endDate && tripDetails.location;
+
   return (
     <>
       <CardHeader>
@@ -95,6 +118,55 @@ export const ReviewSubmission = ({ data, onNext, onBack }: ReviewSubmissionProps
           </div>
         </div>
 
+        {/* Trip Details */}
+        <div className="rounded-lg border bg-card p-4">
+          <h3 className="mb-3 flex items-center space-x-2 text-sm font-semibold">
+            <MapPin className="h-4 w-4 text-primary" />
+            <span>Trip Details</span>
+          </h3>
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="space-y-2">
+              <Label htmlFor="startDate" className="flex items-center space-x-1">
+                <Clock className="h-3 w-3" />
+                <span>Start Date</span>
+              </Label>
+              <Input
+                id="startDate"
+                type="date"
+                value={tripDetails.startDate}
+                onChange={(e) => handleTripUpdate('startDate', e.target.value)}
+                className="text-sm"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="endDate" className="flex items-center space-x-1">
+                <Clock className="h-3 w-3" />
+                <span>End Date</span>
+              </Label>
+              <Input
+                id="endDate"
+                type="date"
+                value={tripDetails.endDate}
+                onChange={(e) => handleTripUpdate('endDate', e.target.value)}
+                className="text-sm"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="location" className="flex items-center space-x-1">
+                <MapPin className="h-3 w-3" />
+                <span>Destination</span>
+              </Label>
+              <Input
+                id="location"
+                placeholder="Enter destination"
+                value={tripDetails.location}
+                onChange={(e) => handleTripUpdate('location', e.target.value)}
+                className="text-sm"
+              />
+            </div>
+          </div>
+        </div>
+
         {/* Blockchain Information */}
         <div className="rounded-lg border bg-gradient-subtle p-4">
           <h3 className="mb-3 flex items-center space-x-2 text-sm font-semibold">
@@ -123,6 +195,7 @@ export const ReviewSubmission = ({ data, onNext, onBack }: ReviewSubmissionProps
           </Button>
           <Button 
             onClick={onNext}
+            disabled={!isTripDetailsValid}
             className="bg-gradient-primary hover:opacity-90 transition-smooth shadow-glow"
           >
             Submit for Verification
