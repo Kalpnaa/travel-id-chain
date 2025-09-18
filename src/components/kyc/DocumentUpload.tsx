@@ -6,6 +6,7 @@ import { Upload, Camera, FileText, CheckCircle, XCircle, AlertCircle } from "luc
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { useState } from "react";
+import Tesseract from "tesseract.js";
 
 interface DocumentUploadProps {
   data: {
@@ -34,66 +35,118 @@ export const DocumentUpload = ({ data, onUpdate, onNext, onBack }: DocumentUploa
 
   const validateDocumentData = async (file: File) => {
     setDocumentValidation({ status: 'validating' });
-    
-    // Simulate document processing/OCR with more comprehensive validation
-    setTimeout(() => {
-      // Mock extracted data - in real app, this would be from OCR/document processing
-      const extractedData = {
-        name: data.name, // Simulate matching name
-        idNumber: data.idNumber, // Simulate matching ID
-        dateOfBirth: data.dateOfBirth, // Simulate matching DOB
-        contact: data.emergencyContact, // Simulate matching contact
-      };
-      
-      // Check for mismatches with all fields
-      const mismatches: string[] = [];
-      
-      // Simulate validation - in real app, compare OCR extracted data with form data
-      if (Math.random() < 0.25) { // 25% chance of name mismatch
-        if (data.name !== extractedData.name) mismatches.push('Name');
-      }
-      
-      if (Math.random() < 0.25) { // 25% chance of ID mismatch  
-        if (data.idNumber !== extractedData.idNumber) mismatches.push('ID Number');
-      }
-      
-      if (Math.random() < 0.25) { // 25% chance of DOB mismatch
-        if (data.dateOfBirth !== extractedData.dateOfBirth) mismatches.push('Date of Birth');
-      }
-      
-      if (Math.random() < 0.25) { // 25% chance of contact mismatch
-        if (data.emergencyContact !== extractedData.contact) mismatches.push('Emergency Contact');
+
+    try {
+      // Only allow images for Aadhaar validation
+      if (!file.type.startsWith('image/')) {
+        const mismatches = ['Document format (must be an image of Aadhaar card)'];
+        setDocumentValidation({ status: 'invalid', mismatches });
+        toast({
+          title: 'Invalid Document',
+          description: 'Please upload a clear image (JPG/PNG) of your Aadhaar card.',
+          variant: 'destructive',
+        });
+        return;
       }
 
-      // Check if uploaded photo file is actually an image
+      const result = await Tesseract.recognize(file, 'eng');
+      const rawText = result?.data?.text || '';
+
+      const aadhaarRegex = /\b\d{4}\s?\d{4}\s?\d{4}\b/g;
+      const dobRegex = /(?:dob|date of birth)\s*[:\-]?\s*(\d{2}[\/\-.]\d{2}[\/\-.]\d{4})/i;
+      const yobRegex = /year of birth\s*[:\-]?\s*(\d{4})/i;
+      const phoneRegex = /\b[6-9]\d{9}\b/;
+
+      const aadhaarMatch = rawText.match(aadhaarRegex)?.[0];
+      const containsAadhaarKeywords = /(aadhaar|aadhar|uidai|unique identification authority|government of india|भारत सरकार)/i.test(rawText);
+      const isAadhaarDoc = !!aadhaarMatch && containsAadhaarKeywords;
+
+      const extractedIdNumber = aadhaarMatch ? aadhaarMatch.replace(/\s/g, '') : undefined;
+      const dobMatch = rawText.match(dobRegex);
+      let extractedDOB = dobMatch ? dobMatch[1].replace(/[.\-]/g, '/') : undefined;
+      if (!extractedDOB) {
+        const yob = rawText.match(yobRegex)?.[1];
+        if (yob) extractedDOB = `01/01/${yob}`; // fallback to year only
+      }
+      const phoneMatch = rawText.match(phoneRegex)?.[0];
+
+      const normalize = (s?: string) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const onlyDigits = (s?: string) => (s || '').replace(/\D/g, '');
+
+      const mismatches: string[] = [];
+      if (!isAadhaarDoc) {
+        mismatches.push('Document type (must be Aadhaar card)');
+      }
+
+      // ID number
+      if (!extractedIdNumber) {
+        mismatches.push('ID Number (not found on document)');
+      } else if (onlyDigits(data.idNumber) !== onlyDigits(extractedIdNumber)) {
+        mismatches.push('ID Number');
+      }
+
+      // DOB
+      if (extractedDOB) {
+        const docDOB = onlyDigits(extractedDOB);
+        const userDOB = onlyDigits(data.dateOfBirth);
+        if (docDOB !== userDOB) mismatches.push('Date of Birth');
+      } else {
+        mismatches.push('Date of Birth (not found on document)');
+      }
+
+      // Phone
+      if (phoneMatch) {
+        const userPhone = onlyDigits(data.emergencyContact).slice(-10);
+        if (userPhone !== onlyDigits(phoneMatch)) mismatches.push('Phone Number');
+      } else {
+        mismatches.push('Phone Number (not found on document)');
+      }
+
+      // Name - check if user's name appears in the OCR text
+      const namePattern = new RegExp(data.name.trim().replace(/\s+/g, '\\s+'), 'i');
+      if (!namePattern.test(rawText)) {
+        mismatches.push('Name');
+      }
+
+      // Photo basic check
       if (data.photo && !data.photo.type.startsWith('image/')) {
         mismatches.push('Photo format (must be an image)');
       }
-      
-      // Check if document file is valid (image or PDF)
-      if (file && !file.type.startsWith('image/') && file.type !== 'application/pdf') {
-        mismatches.push('Document format (must be image or PDF)');
-      }
-      
+
+      const extractedData = {
+        name: namePattern.test(rawText) ? data.name : undefined,
+        idNumber: extractedIdNumber,
+        dateOfBirth: extractedDOB,
+        phone: phoneMatch,
+      };
+
       setDocumentValidation({
         status: mismatches.length > 0 ? 'invalid' : 'valid',
         extractedData,
-        mismatches
+        mismatches,
       });
 
       if (mismatches.length === 0) {
         toast({
-          title: "Document Verified",
-          description: "All information matches successfully including photo validation.",
+          title: 'Document Verified',
+          description: 'All Aadhaar details match your input.',
         });
       } else {
         toast({
-          title: "Document Validation Failed",
-          description: `Mismatched fields: ${mismatches.join(', ')}`,
-          variant: "destructive"
+          title: 'Aadhaar Verification Failed',
+          description: `Issues: ${mismatches.join(', ')}`,
+          variant: 'destructive',
         });
       }
-    }, 2000);
+    } catch (err) {
+      console.error('OCR error', err);
+      setDocumentValidation({ status: 'invalid', mismatches: ['Unable to read document. Please upload a clearer Aadhaar image.'] });
+      toast({
+        title: 'Verification Error',
+        description: 'Unable to read document. Please try a clearer image of your Aadhaar card.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleFileUpload = (type: 'photo' | 'idDocument') => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -109,10 +162,10 @@ export const DocumentUpload = ({ data, onUpdate, onNext, onBack }: DocumentUploa
         return;
       }
       
-      if (type === 'idDocument' && !file.type.startsWith('image/') && file.type !== 'application/pdf') {
+      if (type === 'idDocument' && !file.type.startsWith('image/')) {
         toast({
           title: "Invalid File Type", 
-          description: "Please upload a valid image or PDF file for your document.",
+          description: "Please upload a clear image (JPG/PNG) of your Aadhaar card.",
           variant: "destructive"
         });
         return;
@@ -198,7 +251,7 @@ export const DocumentUpload = ({ data, onUpdate, onNext, onBack }: DocumentUploa
             )}>
               <input
                 type="file"
-                accept="image/*,.pdf"
+                accept="image/*"
                 onChange={handleFileUpload('idDocument')}
                 className="absolute inset-0 cursor-pointer opacity-0"
               />
@@ -266,7 +319,7 @@ export const DocumentUpload = ({ data, onUpdate, onNext, onBack }: DocumentUploa
             <li>• Maximum file size: 10MB</li>
             <li>• Information must match your personal details exactly</li>
             <li>• Photo must match the person in the document</li>
-            <li>• Valid documents: Aadhar Card, Passport, Driver's License</li>
+            <li>• Valid document: Aadhaar Card (front or back), image only</li>
           </ul>
         </div>
 

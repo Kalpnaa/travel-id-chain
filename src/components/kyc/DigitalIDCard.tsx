@@ -137,11 +137,22 @@ export const DigitalIDCard = ({ data, digitalId }: DigitalIDCardProps) => {
         pdf.text(displayValue, 80, yPos);
       });
       
-      // QR Code placeholder (you can integrate a QR code library)
-      pdf.setDrawColor(200, 200, 200);
-      pdf.rect(140, 90, 40, 40, 'S');
-      pdf.setFontSize(8);
-      pdf.text('QR Code', 160, 113, { align: 'center' });
+      // User Photo (replacing QR)
+      if (data.photo) {
+        const photoDataUrl: string = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result));
+          reader.onerror = reject;
+          reader.readAsDataURL(data.photo as Blob);
+        });
+        const format = (data.photo.type.includes('png') ? 'PNG' : 'JPEG') as 'JPEG' | 'PNG';
+        pdf.addImage(photoDataUrl, format, 140, 90, 40, 40);
+      } else {
+        pdf.setDrawColor(200, 200, 200);
+        pdf.rect(140, 90, 40, 40, 'S');
+        pdf.setFontSize(8);
+        pdf.text('Photo', 160, 113, { align: 'center' });
+      }
       
       // Footer
       const footerY = nextSectionY + 60;
